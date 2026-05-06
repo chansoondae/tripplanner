@@ -1,0 +1,13 @@
+/* Timeline Default Theme */
+.timeline-view {
+  --timeline-bg: var(--color-background);
+  --timeline-accent: var(--color-primary);
+  --timeline-line: var(--color-border);
+  --timeline-card-bg: var(--color-surface);
+  --timeline-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --timeline-time-color: var(--color-muted);
+  --timeline-title-color: var(--color-foreground);
+  --timeline-location-color: var(--color-accent);
+  --timeline-spacing: 1rem;
+  --timeline-font: inherit;
+}

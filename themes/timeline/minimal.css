@@ -1,0 +1,13 @@
+/* Timeline Minimal Theme */
+.timeline-view {
+  --timeline-bg: #ffffff;
+  --timeline-accent: #000000;
+  --timeline-line: #e5e5e5;
+  --timeline-card-bg: transparent;
+  --timeline-card-shadow: none;
+  --timeline-time-color: #999999;
+  --timeline-title-color: #111111;
+  --timeline-location-color: #555555;
+  --timeline-spacing: 0.75rem;
+  --timeline-font: "Georgia", serif;
+}
