@@ -33,22 +33,4 @@ export const llmTools: ChatCompletionTool[] = [
       },
     },
   },
-  {
-    type: "function",
-    function: {
-      name: "suggest_only",
-      description:
-        "일정을 변경하지 않고 텍스트로만 답변합니다. 의도가 불분명하거나 정보가 필요할 때 사용.",
-      parameters: {
-        type: "object",
-        properties: {
-          content: {
-            type: "string",
-            description: "사용자에게 전달할 텍스트",
-          },
-        },
-        required: ["content"],
-      },
-    },
-  },
 ];

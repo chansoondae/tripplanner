@@ -32,7 +32,7 @@ function extractTextFromNode(node: Node): string {
   return "";
 }
 
-function parseActivityLine(raw: string, dayIndex: number, position: number): Activity {
+function parseActivityLine(raw: string, dayIndex: number, position: number, tripTitle?: string): Activity {
   // Pattern: **HH:MM** 제목 [@장소] [[텍스트](url)] [이모지]
   const timeMatch = raw.match(/^\*\*(\d{1,2}:\d{2})\*\*\s*/);
   let rest = raw;
@@ -57,7 +57,8 @@ function parseActivityLine(raw: string, dayIndex: number, position: number): Act
     location = locationMatch[1];
     rest = rest.replace(locationMatch[0], " ").trim();
     if (!url) {
-      url = `https://www.google.com/maps/search/${encodeURIComponent(location)}`;
+      const query = tripTitle ? `${location} ${tripTitle}` : location;
+      url = `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
     }
   }
 
@@ -89,14 +90,14 @@ function parseDayLabel(label: string): string {
   if (match) {
     const month = match[1].padStart(2, "0");
     const day = match[2].padStart(2, "0");
-    return `2026-${month}-${day}`;
+    return `${new Date().getFullYear()}-${month}-${day}`;
   }
   return "";
 }
 
 export function parseMarkdown(markdown: string): Itinerary {
   const processor = unified().use(remarkParse).use(remarkFrontmatter, ["yaml"]);
-  const tree = processor.parse(markdown) as Root;
+  const tree = processor.parse(markdown.trimStart()) as Root;
 
   let meta: ItineraryMeta = {
     title: "여행 일정",
@@ -155,7 +156,7 @@ export function parseMarkdown(markdown: string): Itinerary {
             .join("");
         }
 
-        const activity = parseActivityLine(rawText, currentDay!.index, pos);
+        const activity = parseActivityLine(rawText, currentDay!.index, pos, meta.title);
 
         // Sub-bullets 분류: ⏱ duration, 💰 price, 💡 tips, 나머지 notes
         if (listItem.children.length > 1) {

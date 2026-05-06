@@ -5,13 +5,14 @@ import { use, useEffect, useState, useCallback } from "react";
 import { useTripStore } from "@/lib/store/trip-store";
 import TimelineView from "@/components/views/TimelineView";
 import ChatPanel from "@/components/chat/ChatPanel";
+import ChatBottomSheet from "@/components/chat/ChatBottomSheet";
 
 const MarkdownEditor = dynamic(
   () => import("@/components/editor/MarkdownEditor"),
   { ssr: false }
 );
 
-type Tab = "view" | "edit" | "chat";
+type Tab = "view" | "edit";
 
 export default function TripPage({
   params,
@@ -19,10 +20,10 @@ export default function TripPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { raw_markdown, parsed, selectedItemId, loadTrip, setMarkdown, selectItem } =
+  const { raw_markdown, parsed, selectedItemId, selectedItemIds, loadTrip, setMarkdown, selectItem, toggleSelectItem, selectDay } =
     useTripStore();
   const [tab, setTab] = useState<Tab>("view");
-  const [showChat, setShowChat] = useState(false);
+  const [showChat, setShowChat] = useState(true);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(async () => {
@@ -56,7 +57,7 @@ export default function TripPage({
 
       {/* 모바일 탭 */}
       <div className="md:hidden shrink-0 flex border-b border-gray-200">
-        {(["view", "edit", "chat"] as Tab[]).map((t) => (
+        {(["view", "edit"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -67,7 +68,7 @@ export default function TripPage({
                 : "text-gray-500",
             ].join(" ")}
           >
-            {t === "view" ? "일정" : t === "edit" ? "편집" : "💬"}
+            {t === "view" ? "일정" : "편집"}
           </button>
         ))}
       </div>
@@ -102,15 +103,18 @@ export default function TripPage({
             "overflow-hidden md:flex-1 md:flex h-full",
             tab === "view" ? "flex flex-1" : "hidden",
           ].join(" ")}
+          style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         >
           {parsed ? (
             <TimelineView
               itinerary={parsed}
               selectedItemId={selectedItemId}
-              onItemClick={(id) => {
-                selectItem(id);
-                setTab("edit");
+              selectedItemIds={selectedItemIds}
+              onItemClick={(id, multi) => {
+                toggleSelectItem(id, multi);
+                if (!multi) setTab("edit");
               }}
+              onDayClick={(dayIndex) => selectDay(dayIndex)}
             />
           ) : (
             <div className="flex items-center justify-center flex-1 text-sm text-gray-400">
@@ -126,16 +130,10 @@ export default function TripPage({
           </div>
         )}
 
-        {/* 모바일 채팅 탭 */}
-        <div
-          className={[
-            "md:hidden overflow-hidden",
-            tab === "chat" ? "flex flex-1 flex-col" : "hidden",
-          ].join(" ")}
-        >
-          <ChatPanel />
-        </div>
       </div>
+
+      {/* 모바일 채팅 Bottom Sheet */}
+      <ChatBottomSheet />
     </div>
   );
 }

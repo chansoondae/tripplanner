@@ -1,11 +1,14 @@
 "use client";
 
+import { useRef } from "react";
 import type { Itinerary, Day, Activity } from "@/lib/markdown/schema";
 
 type Props = {
   itinerary: Itinerary;
   selectedItemId?: string | null;
-  onItemClick?: (id: string) => void;
+  selectedItemIds?: string[];
+  onItemClick?: (id: string, multi: boolean) => void;
+  onDayClick?: (dayIndex: number) => void;
 };
 
 const ACTIVITY_TYPE_ICON: Record<string, string> = {
@@ -23,16 +26,37 @@ function ActivityCard({
 }: {
   activity: Activity;
   isSelected: boolean;
-  onClick: () => void;
+  onClick: (multi: boolean) => void;
 }) {
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didLongPress = useRef(false);
+
+  function handleTouchStart() {
+    didLongPress.current = false;
+    longPressTimer.current = setTimeout(() => {
+      didLongPress.current = true;
+      onClick(true);
+    }, 500);
+  }
+
+  function handleTouchEnd() {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+  }
+
   return (
     <button
-      onClick={onClick}
+      onClick={(e) => {
+        if (didLongPress.current) return;
+        onClick(e.shiftKey);
+      }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchEnd}
       className={[
         "w-full text-left flex gap-3 p-3 rounded-lg transition-colors min-h-[44px]",
         "hover:bg-[var(--timeline-card-bg,#f9fafb)]",
         isSelected
-          ? "bg-[var(--timeline-accent-bg,#eff6ff)] ring-1 ring-[var(--timeline-accent,#2563eb)]"
+          ? "bg-[var(--timeline-accent-bg,#eff6ff)] ring-2 ring-[var(--timeline-accent,#2563eb)]"
           : "",
       ].join(" ")}
     >
@@ -114,27 +138,42 @@ function ActivityCard({
 
 function DaySection({
   day,
-  selectedItemId,
+  selectedItemIds,
   onItemClick,
+  onDayClick,
 }: {
   day: Day;
-  selectedItemId?: string | null;
-  onItemClick?: (id: string) => void;
+  selectedItemIds?: string[];
+  onItemClick?: (id: string, multi: boolean) => void;
+  onDayClick?: (dayIndex: number) => void;
 }) {
+  const allSelected = day.items.length > 0 && day.items.every((item) => selectedItemIds?.includes(item.id));
+
   return (
     <section className="mb-6">
       {/* Day 헤더 */}
       <div className="flex items-center gap-3 mb-3">
-        <div className="h-8 w-8 rounded-full bg-[var(--timeline-accent,#2563eb)] text-white flex items-center justify-center text-sm font-bold shrink-0">
+        <button
+          onClick={() => onDayClick?.(day.index)}
+          className={[
+            "h-8 w-8 rounded-full text-white flex items-center justify-center text-sm font-bold shrink-0 transition-colors",
+            allSelected
+              ? "bg-[var(--timeline-accent,#2563eb)] ring-2 ring-offset-1 ring-[var(--timeline-accent,#2563eb)]"
+              : "bg-[var(--timeline-accent,#2563eb)] hover:opacity-80",
+          ].join(" ")}
+        >
           {day.index + 1}
-        </div>
-        <h2 className="text-base font-semibold text-[var(--timeline-title-color,#111827)]">
+        </button>
+        <h2
+          className="text-base font-semibold text-[var(--timeline-title-color,#111827)] cursor-pointer hover:text-[var(--timeline-accent,#2563eb)] transition-colors"
+          onClick={() => onDayClick?.(day.index)}
+        >
           {day.label}
         </h2>
       </div>
 
       {/* 타임라인 항목들 */}
-      <div className="ml-4 pl-6 border-l-2 border-[var(--timeline-line,#e5e7eb)] space-y-1">
+      <div className="ml-[15px] pl-6 border-l-2 border-[var(--timeline-line,#e5e7eb)] space-y-1">
         {day.items.length === 0 ? (
           <p className="text-sm text-[var(--timeline-time-color,#6b7280)] py-2">
             항목 없음
@@ -143,11 +182,11 @@ function DaySection({
           day.items.map((activity) => (
             <div key={activity.id} className="relative">
               {/* 타임라인 점 */}
-              <div className="absolute -left-[1.6rem] top-3.5 w-2 h-2 rounded-full bg-[var(--timeline-accent,#2563eb)] ring-2 ring-white" />
+              <div className="absolute -left-[1.65rem] top-4 w-2.5 h-2.5 rounded-full bg-[var(--timeline-accent,#2563eb)] ring-2 ring-white" />
               <ActivityCard
                 activity={activity}
-                isSelected={selectedItemId === activity.id}
-                onClick={() => onItemClick?.(activity.id)}
+                isSelected={selectedItemIds?.includes(activity.id) ?? false}
+                onClick={(multi) => onItemClick?.(activity.id, multi)}
               />
             </div>
           ))
@@ -157,7 +196,7 @@ function DaySection({
   );
 }
 
-export default function TimelineView({ itinerary, selectedItemId, onItemClick }: Props) {
+export default function TimelineView({ itinerary, selectedItemId: _, selectedItemIds, onItemClick, onDayClick }: Props) {
   if (itinerary.days.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-[var(--timeline-time-color,#6b7280)] text-sm">
@@ -167,7 +206,7 @@ export default function TimelineView({ itinerary, selectedItemId, onItemClick }:
   }
 
   return (
-    <div className="timeline-view w-full h-full overflow-y-auto p-4">
+    <div className="timeline-view w-full h-full overflow-y-auto p-4 pb-20 md:pb-4">
       {/* 여행 제목 */}
       <div className="mb-6">
         <h1 className="text-xl font-bold text-[var(--timeline-title-color,#111827)]">
@@ -187,8 +226,9 @@ export default function TimelineView({ itinerary, selectedItemId, onItemClick }:
         <DaySection
           key={day.index}
           day={day}
-          selectedItemId={selectedItemId}
+          selectedItemIds={selectedItemIds}
           onItemClick={onItemClick}
+          onDayClick={onDayClick}
         />
       ))}
     </div>

@@ -16,11 +16,15 @@ type TripStore = {
   parsed: Itinerary | null;
   activeDay: number | null;
   selectedItemId: string | null;
+  selectedItemIds: string[];
   saveStatus: SaveStatus;
 
   loadTrip: (id: string) => Promise<void>;
   setMarkdown: (md: string) => void;
   selectItem: (id: string | null) => void;
+  toggleSelectItem: (id: string, multi: boolean) => void;
+  selectDay: (dayIndex: number) => void;
+  clearSelection: () => void;
   setActiveDay: (index: number | null) => void;
   setSaveStatus: (status: SaveStatus) => void;
   moveItem: (id: string, newTime: string) => void;
@@ -47,6 +51,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
   parsed: null,
   activeDay: null,
   selectedItemId: null,
+  selectedItemIds: [],
   saveStatus: "idle",
 
   loadTrip: async (id) => {
@@ -63,7 +68,32 @@ export const useTripStore = create<TripStore>((set, get) => ({
     if (tripId) saveToDB(tripId, md, parsed?.meta.title ?? "새 여행");
   },
 
-  selectItem: (id) => set({ selectedItemId: id }),
+  selectItem: (id) => set({ selectedItemId: id, selectedItemIds: id ? [id] : [] }),
+
+  toggleSelectItem: (id, multi) => {
+    const { selectedItemIds } = get();
+    if (!multi) {
+      set({ selectedItemIds: [id], selectedItemId: id });
+      return;
+    }
+    const exists = selectedItemIds.includes(id);
+    const next = exists ? selectedItemIds.filter((i) => i !== id) : [...selectedItemIds, id];
+    set({ selectedItemIds: next, selectedItemId: next[next.length - 1] ?? null });
+  },
+
+  selectDay: (dayIndex) => {
+    const { parsed, selectedItemIds } = get();
+    const day = parsed?.days.find((d) => d.index === dayIndex);
+    if (!day) return;
+    const dayIds = day.items.map((item) => item.id);
+    const allSelected = dayIds.every((id) => selectedItemIds.includes(id));
+    const next = allSelected
+      ? selectedItemIds.filter((id) => !dayIds.includes(id))
+      : [...new Set([...selectedItemIds, ...dayIds])];
+    set({ selectedItemIds: next, selectedItemId: next[next.length - 1] ?? null });
+  },
+
+  clearSelection: () => set({ selectedItemIds: [], selectedItemId: null }),
 
   setActiveDay: (index) => set({ activeDay: index }),
 

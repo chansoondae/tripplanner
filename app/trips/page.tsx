@@ -8,6 +8,7 @@ import {
   deleteTripFromDB,
   type TripRow,
 } from "@/lib/supabase/trips";
+import { parseMarkdown } from "@/lib/markdown/parse";
 
 const PRESETS = [
   { label: "도쿄 3박 4일", file: "tokyo-3days.md" },
@@ -41,7 +42,8 @@ export default function TripsPage() {
   }
 
   async function handleCreate(md: string) {
-    const title = "새 여행";
+    let title = "새 여행";
+    try { title = parseMarkdown(md).meta.title; } catch {}
     const row = await createTripInDB(md, title);
     router.push(`/trips/${row.id}`);
   }
