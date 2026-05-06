@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  getTripList,
-  deleteTrip,
-  createTripId,
-  type TripSummary,
-} from "@/lib/utils/trip-list";
+  fetchTrips,
+  createTrip as createTripInDB,
+  deleteTripFromDB,
+  type TripRow,
+} from "@/lib/supabase/trips";
 
 const PRESETS = [
   { label: "도쿄 3박 4일", file: "tokyo-3days.md" },
@@ -27,29 +27,27 @@ travelers: 2
 
 export default function TripsPage() {
   const router = useRouter();
-  const [trips, setTrips] = useState<TripSummary[]>([]);
+  const [trips, setTrips] = useState<TripRow[]>([]);
   const [showNewModal, setShowNewModal] = useState(false);
 
   useEffect(() => {
-    setTrips(getTripList());
+    fetchTrips().then(setTrips).catch(console.error);
   }, []);
 
   async function createFromPreset(file: string) {
     const res = await fetch(`/presets/${file}`);
     const md = await res.text();
-    createTrip(md);
+    await handleCreate(md);
   }
 
-  function createTrip(md: string) {
-    const id = createTripId();
-    try {
-      localStorage.setItem(`trip:${id}`, md);
-    } catch {}
-    router.push(`/trips/${id}`);
+  async function handleCreate(md: string) {
+    const title = "새 여행";
+    const row = await createTripInDB(md, title);
+    router.push(`/trips/${row.id}`);
   }
 
-  function handleDelete(id: string) {
-    deleteTrip(id);
+  async function handleDelete(id: string) {
+    await deleteTripFromDB(id);
     setTrips((prev) => prev.filter((t) => t.id !== id));
   }
 
@@ -86,7 +84,7 @@ export default function TripsPage() {
                 >
                   <p className="font-medium text-sm">{trip.title}</p>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {new Date(trip.updatedAt).toLocaleDateString("ko-KR", {
+                    {new Date(trip.updated_at).toLocaleDateString("ko-KR", {
                       year: "numeric",
                       month: "long",
                       day: "numeric",
@@ -119,7 +117,7 @@ export default function TripsPage() {
             <h2 className="font-semibold text-base mb-4">새 일정 만들기</h2>
 
             <button
-              onClick={() => createTrip(BLANK_MD)}
+              onClick={() => handleCreate(BLANK_MD)}
               className="w-full text-left p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors min-h-[44px]"
             >
               <p className="font-medium text-sm">빈 일정으로 시작</p>
@@ -131,7 +129,7 @@ export default function TripsPage() {
             {PRESETS.map((p) => (
               <button
                 key={p.file}
-                onClick={() => createFromPreset(p.file)}
+                onClick={() => { void createFromPreset(p.file); }}
                 className="w-full text-left p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors min-h-[44px]"
               >
                 <p className="font-medium text-sm">{p.label}</p>

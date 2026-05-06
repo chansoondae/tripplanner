@@ -2,7 +2,7 @@ import { createClient } from "./client";
 
 export type TripRow = {
   id: string;
-  user_id: string;
+  user_id: string | null;
   title: string;
   markdown: string;
   meta: Record<string, unknown>;
@@ -14,7 +14,7 @@ export type TripRow = {
 export async function fetchTrips(): Promise<TripRow[]> {
   const supabase = createClient();
   const { data, error } = await supabase
-    .from("trips")
+    .from("tp_trips")
     .select("*")
     .order("updated_at", { ascending: false });
 
@@ -25,7 +25,7 @@ export async function fetchTrips(): Promise<TripRow[]> {
 export async function fetchTrip(id: string): Promise<TripRow | null> {
   const supabase = createClient();
   const { data, error } = await supabase
-    .from("trips")
+    .from("tp_trips")
     .select("*")
     .eq("id", id)
     .single();
@@ -37,7 +37,7 @@ export async function fetchTrip(id: string): Promise<TripRow | null> {
 export async function createTrip(markdown: string, title: string): Promise<TripRow> {
   const supabase = createClient();
   const { data, error } = await supabase
-    .from("trips")
+    .from("tp_trips")
     .insert({ markdown, title, meta: { title } })
     .select()
     .single();
@@ -53,7 +53,7 @@ export async function updateTrip(
 ): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase
-    .from("trips")
+    .from("tp_trips")
     .update({ markdown, title, meta: { title }, updated_at: new Date().toISOString() })
     .eq("id", id);
 
@@ -62,6 +62,6 @@ export async function updateTrip(
 
 export async function deleteTripFromDB(id: string): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase.from("trips").delete().eq("id", id);
+  const { error } = await supabase.from("tp_trips").delete().eq("id", id);
   if (error) throw error;
 }

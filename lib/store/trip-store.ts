@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { parseMarkdown } from "@/lib/markdown/parse";
 import { serializeItinerary } from "@/lib/markdown/serialize";
 import { debounce } from "@/lib/utils/debounce";
-import { upsertTripSummary } from "@/lib/utils/trip-list";
+import { updateTrip, fetchTrip } from "@/lib/supabase/trips";
 import type { Itinerary, Activity } from "@/lib/markdown/schema";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -18,7 +18,7 @@ type TripStore = {
   selectedItemId: string | null;
   saveStatus: SaveStatus;
 
-  loadTrip: (id: string) => void;
+  loadTrip: (id: string) => Promise<void>;
   setMarkdown: (md: string) => void;
   selectItem: (id: string | null) => void;
   setActiveDay: (index: number | null) => void;
@@ -28,23 +28,8 @@ type TripStore = {
   undoAIEdit: () => void;
 };
 
-const STORAGE_PREFIX = "trip:";
-
-function loadFromStorage(id: string): string | null {
-  try {
-    return localStorage.getItem(STORAGE_PREFIX + id);
-  } catch {
-    return null;
-  }
-}
-
-const saveToStorage = debounce((id: string, md: string, title: string) => {
-  try {
-    localStorage.setItem(STORAGE_PREFIX + id, md);
-    upsertTripSummary({ id, title, updatedAt: new Date().toISOString() });
-  } catch {
-    // storage full 등 무시
-  }
+const saveToDB = debounce((id: string, md: string, title: string) => {
+  updateTrip(id, md, title).catch((e) => console.error("[store] save failed:", e));
 }, 1000);
 
 function safeParse(md: string, fallback: Itinerary | null): Itinerary | null {
@@ -64,9 +49,9 @@ export const useTripStore = create<TripStore>((set, get) => ({
   selectedItemId: null,
   saveStatus: "idle",
 
-  loadTrip: (id) => {
-    const saved = loadFromStorage(id);
-    const md = saved ?? "";
+  loadTrip: async (id) => {
+    const row = await fetchTrip(id);
+    const md = row?.markdown ?? "";
     const parsed = safeParse(md, null);
     set({ tripId: id, raw_markdown: md, parsed });
   },
@@ -75,7 +60,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
     const { tripId, parsed: prev } = get();
     const parsed = safeParse(md, prev);
     set({ raw_markdown: md, parsed });
-    if (tripId) saveToStorage(tripId, md, parsed?.meta.title ?? "새 여행");
+    if (tripId) saveToDB(tripId, md, parsed?.meta.title ?? "새 여행");
   },
 
   selectItem: (id) => set({ selectedItemId: id }),
