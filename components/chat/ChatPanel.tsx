@@ -29,7 +29,7 @@ type Props = {
 };
 
 export default function ChatPanel({ onClose }: Props) {
-  const { raw_markdown, applyAIEdit, undoAIEdit, previousMarkdown } = useTripStore();
+  const { raw_markdown, applyAIEdit, undoAIEdit, previousMarkdown, selectedItemIds, parsed, clearSelection } = useTripStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -37,12 +37,12 @@ export default function ChatPanel({ onClose }: Props) {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const fetchSuggestions = useCallback((md: string) => {
+  const fetchSuggestions = useCallback((md: string, msgs: Message[] = [], hasPending = false) => {
     setSuggestions([]);
     fetch("/api/suggestions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ markdown: md }),
+      body: JSON.stringify({ markdown: md, recentMessages: msgs.slice(-4), hasPendingEdit: hasPending }),
     })
       .then((r) => r.json())
       .then((data: { suggestions?: string[] }) => {
@@ -67,6 +67,8 @@ export default function ChatPanel({ onClose }: Props) {
     setMessages(nextMessages);
     setInput("");
     setLoading(true);
+    let assistantText = "";
+    let didSetPending = false;
 
     try {
       const res = await fetch("/api/chat", {
@@ -74,7 +76,12 @@ export default function ChatPanel({ onClose }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: nextMessages,
-          markdown: raw_markdown,
+          markdown: pendingEdit ? pendingEdit.updated : raw_markdown,
+          selectedItems: selectedItemIds.length > 0
+            ? parsed?.days.flatMap((d) => d.items)
+                .filter((item) => selectedItemIds.includes(item.id))
+                .map((item) => `${item.time ? item.time + " " : ""}${item.title}${item.location ? " @" + item.location : ""}`)
+            : undefined,
         }),
       });
 
@@ -82,7 +89,6 @@ export default function ChatPanel({ onClose }: Props) {
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let assistantText = "";
       // tool_calls는 청크마다 누적
       const toolCallAccum: Record<number, { name: string; args: string }> = {};
 
@@ -139,9 +145,6 @@ export default function ChatPanel({ onClose }: Props) {
             const updateCalls = Object.values(toolCallAccum).filter(
               (t) => t.name === "update_markdown"
             );
-            const suggestCall = Object.values(toolCallAccum).find(
-              (t) => t.name === "suggest_only"
-            );
 
             if (updateCalls.length > 0) {
               // 다중 update_markdown은 순차적으로 누적 적용
@@ -161,16 +164,8 @@ export default function ChatPanel({ onClose }: Props) {
                 updated: current,
                 reason: reasons.join(" / "),
               });
-            } else if (suggestCall) {
-              try {
-                const toolInput = JSON.parse(suggestCall.args) as { content: string };
-                setMessages([
-                  ...nextMessages,
-                  { role: "assistant", content: toolInput.content },
-                ]);
-              } catch (e) {
-                console.error("[chat] suggest parse error:", e);
-              }
+              didSetPending = true;
+              fetchSuggestions(raw_markdown, [...nextMessages, { role: "assistant", content: assistantText }], true);
             }
           }
         }
@@ -185,17 +180,17 @@ export default function ChatPanel({ onClose }: Props) {
       setTimeout(() => {
         listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
       }, 50);
-      fetchSuggestions(raw_markdown);
+      if (!didSetPending) {
+        fetchSuggestions(raw_markdown, [...nextMessages, { role: "assistant", content: assistantText }], false);
+      }
     }
   }
 
   function handleApply() {
-    console.log("[apply] pendingEdit:", pendingEdit);
     if (!pendingEdit) return;
-    console.log("[apply] calling applyAIEdit, length:", pendingEdit.updated.length);
     applyAIEdit(pendingEdit.updated);
-    console.log("[apply] store raw_markdown after:", raw_markdown.length);
     setPendingEdit(null);
+    fetchSuggestions(pendingEdit.updated, messages, false);
   }
 
   return (
@@ -270,7 +265,10 @@ export default function ChatPanel({ onClose }: Props) {
             updated={pendingEdit.updated}
             reason={pendingEdit.reason}
             onApply={handleApply}
-            onReject={() => setPendingEdit(null)}
+            onReject={() => {
+              setPendingEdit(null);
+              fetchSuggestions(raw_markdown, messages, false);
+            }}
           />
         )}
       </div>
@@ -292,6 +290,21 @@ export default function ChatPanel({ onClose }: Props) {
               <div key={i} className="shrink-0 h-7 w-28 rounded-full bg-gray-100 animate-pulse" />
             ))}
       </div>
+
+      {/* 선택 항목 배지 */}
+      {selectedItemIds.length > 0 && (
+        <div className="shrink-0 px-3 pb-1 flex items-center gap-2">
+          <span className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2.5 py-1">
+            {selectedItemIds.length}개 항목 선택됨
+          </span>
+          <button
+            onClick={clearSelection}
+            className="text-xs text-gray-400 hover:text-gray-600"
+          >
+            선택 해제
+          </button>
+        </div>
+      )}
 
       {/* 입력 */}
       <div className="shrink-0 p-3 border-t border-gray-200 flex gap-2">

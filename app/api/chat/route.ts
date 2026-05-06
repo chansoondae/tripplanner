@@ -16,6 +16,7 @@ const RequestSchema = z.object({
   markdown: z.string(),
   selectedDay: z.string().optional(),
   selectedItem: z.string().optional(),
+  selectedItems: z.array(z.string()).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -28,8 +29,9 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const { messages, markdown, selectedDay, selectedItem } = parsed.data;
-  const systemPrompt = buildSystemPrompt({ markdown, selectedDay, selectedItem });
+  const { messages, markdown, selectedDay, selectedItem, selectedItems } = parsed.data;
+  const lastUserMessage = [...messages].reverse().find((m) => m.role === "user")?.content;
+  const systemPrompt = buildSystemPrompt({ markdown, userMessage: lastUserMessage, selectedDay, selectedItem, selectedItems });
 
   const stream = await client.chat.completions.create({
     model: "gpt-4o",
