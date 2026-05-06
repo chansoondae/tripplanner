@@ -58,7 +58,7 @@ ${month}에 가는 ${duration} 여행, 동행: ${companion}.
       messages: [
         {
           role: "system",
-          content: `당신은 여행 일정 전문가입니다. 현재 연도는 ${new Date().getFullYear()}년입니다. 아래 형식의 마크다운 여행 일정을 생성하세요.
+          content: `당신은 여행 일정 전문가입니다. 현재 연도는 반드시 ${new Date().getFullYear()}년입니다. dates 필드에 절대로 2023년이나 다른 연도를 쓰지 말고 반드시 ${new Date().getFullYear()}년을 사용하세요. 아래 형식의 마크다운 여행 일정을 생성하세요.
 
 형식 (코드블록 없이 그대로 출력):
 ---
@@ -94,7 +94,10 @@ travelers: 동행 정보
     });
 
     const raw = res.choices[0]?.message?.content ?? "";
-    const markdown = raw.replace(/^```(?:markdown)?\n?/m, "").replace(/\n?```$/m, "").trim();
+    const currentYear = new Date().getFullYear();
+    const markdown = raw
+      .replace(/^```(?:markdown)?\n?/m, "").replace(/\n?```$/m, "").trim()
+      .replace(/dates:\s*\d{4}/g, `dates: ${currentYear}`);
     return Response.json({ markdown });
   }
 
