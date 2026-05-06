@@ -36,9 +36,10 @@ export async function fetchTrip(id: string): Promise<TripRow | null> {
 
 export async function createTrip(markdown: string, title: string): Promise<TripRow> {
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from("tp_trips")
-    .insert({ markdown, title, meta: { title } })
+    .insert({ markdown, title, meta: { title }, user_id: user?.id ?? null })
     .select()
     .single();
 
