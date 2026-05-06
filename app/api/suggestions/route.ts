@@ -24,6 +24,10 @@ export async function POST(req: NextRequest) {
 
   const { markdown, recentMessages = [], hasPendingEdit = false } = parsed.data;
 
+  // 일정이 비어있는지 판단: 활동 항목(- **HH:MM**)이 2개 미만이면 빈 일정
+  const activityCount = (markdown.match(/- \*\*\d{2}:\d{2}\*\*/g) ?? []).length;
+  const isEmpty = activityCount < 2;
+
   const hasConversation = recentMessages.length > 0;
   // pendingEdit(diff 대기)가 실제로 있을 때만 "제안대로 수정해줘" 표시
   const hasModificationSuggestion = hasPendingEdit;
@@ -46,6 +50,21 @@ export async function POST(req: NextRequest) {
 ${hasModificationSuggestion ? '- AI가 수정안을 제안했으므로 첫 번째 항목은 반드시 "제안대로 수정해줘"로 할 것\n' : ""}- AI가 정보(시간, 장소 등)를 되물었다면 구체적인 답변 형태로 만들 것 (예: "14:00에 추가해줘", "카펠교 근처로 해줘")
 - 이미 일정에 반영된 내용이나 방금 실행한 요청과 동일한 내용은 절대 추천하지 말 것
 - 각 문구는 40자 이내의 구체적인 요청문
+
+반드시 아래 JSON 형식으로만 응답하세요:
+{"suggestions": ["문구1", "문구2", "문구3"]}`
+    : isEmpty
+    ? `당신은 여행 일정 AI 어시스턴트입니다.
+여행 일정이 거의 비어있습니다. 사용자가 여행 계획을 시작할 때 AI에게 할 수 있는 포괄적인 요청 문구 3개를 한국어로 생성하세요.
+
+규칙:
+- 여행지, 날짜, 인원, 테마 등 여행 전체를 설정하는 큰 요청을 만들 것
+- 예시 유형:
+  - 여행지 + 기간으로 전체 일정 생성 ("스위스 5박 6일 일정 짜줘")
+  - 여행 스타일/테마 설정 ("자연 위주 힐링 여행으로 짜줘")
+  - 여행지 추천 요청 ("유럽 2주 여행지 추천해줘")
+- 각 문구는 30자 이내
+- 지엽적인 특정 시간/장소 언급 금지
 
 반드시 아래 JSON 형식으로만 응답하세요:
 {"suggestions": ["문구1", "문구2", "문구3"]}`

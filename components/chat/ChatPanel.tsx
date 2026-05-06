@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback } from "react";
+import Markdown from "react-markdown";
 import { useTripStore } from "@/lib/store/trip-store";
 import { applyToolEdit } from "@/lib/utils/diff";
 import DiffPreview from "./DiffPreview";
@@ -232,13 +233,13 @@ export default function ChatPanel({ onClose }: Props) {
           >
             <div
               className={[
-                "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap",
+                "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
                 msg.role === "user"
-                  ? "bg-blue-600 text-white rounded-br-sm"
-                  : "bg-gray-100 text-gray-800 rounded-bl-sm",
+                  ? "bg-blue-600 text-white rounded-br-sm whitespace-pre-wrap"
+                  : "bg-gray-100 text-gray-800 rounded-bl-sm prose prose-sm prose-gray max-w-none chat-assistant",
               ].join(" ")}
             >
-              {msg.content}
+              {msg.role === "user" ? msg.content : <Markdown>{msg.content}</Markdown>}
             </div>
           </div>
         ))}

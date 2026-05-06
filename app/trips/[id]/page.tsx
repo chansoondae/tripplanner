@@ -6,6 +6,7 @@ import { useTripStore } from "@/lib/store/trip-store";
 import TimelineView from "@/components/views/TimelineView";
 import ChatPanel from "@/components/chat/ChatPanel";
 import ChatBottomSheet from "@/components/chat/ChatBottomSheet";
+import TripSidebar from "@/components/TripSidebar";
 
 const MarkdownEditor = dynamic(
   () => import("@/components/editor/MarkdownEditor"),
@@ -24,6 +25,7 @@ export default function TripPage({
     useTripStore();
   const [tab, setTab] = useState<Tab>("view");
   const [showChat, setShowChat] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(async () => {
@@ -38,11 +40,26 @@ export default function TripPage({
 
   return (
     <div className="h-dvh flex flex-col">
+      {/* 사이드바 */}
+      <TripSidebar
+        currentTripId={id}
+        open={showSidebar}
+        onClose={() => setShowSidebar(false)}
+      />
+
       {/* 헤더 */}
       <header className="shrink-0 h-12 border-b border-gray-200 flex items-center px-4 gap-3">
-        <a href="/trips" className="text-gray-400 hover:text-gray-700 text-sm shrink-0">
-          ← 목록
-        </a>
+        <button
+          onClick={() => setShowSidebar(true)}
+          className="text-gray-500 hover:text-gray-800 shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
+          aria-label="메뉴"
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <rect x="2" y="4" width="16" height="2" rx="1"/>
+            <rect x="2" y="9" width="16" height="2" rx="1"/>
+            <rect x="2" y="14" width="16" height="2" rx="1"/>
+          </svg>
+        </button>
         <span className="font-semibold text-sm truncate flex-1">
           {parsed?.meta.title || "새 여행"}
         </span>

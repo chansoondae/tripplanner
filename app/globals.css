@@ -1,4 +1,9 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+.chat-assistant strong {
+  color: #f472b6;
+}
 
 :root {
   --background: #ffffff;
